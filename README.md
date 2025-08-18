@@ -1,8 +1,8 @@
 Minotaur
 
-Minotaur is a top-down survival game set in a living labyrinth. The maze is built on a large grid where each square represents a unit cell with toggleable walls. Every so often, walls shift based on randomness, altering the paths available and creating new opportunities or traps.
+Minotaur draws directly from Greek mythology. In the legend, King Minos of Crete imprisoned the monstrous Minotaur within a vast Labyrinth designed by the master craftsman Daedalus — a maze so cunningly built that no one who entered could ever find the way out. Each year, Athens was forced to send sacrifices into this prison, where they would wander until the beast inevitably hunted them down. Only Theseus, aided by Ariadne’s thread, ever escaped.
 
-One player takes the role of the hunted, whose goal is to reach the center of the labyrinth and escape via a visible ladder. The other role is the Minotaur, who always knows the hunted’s location and relentlessly pursues them from the far side of the maze. The shifting walls can help or hinder either side, sometimes breaking line of sight or forcing a longer route.
+This game reimagines that myth as a shifting, living labyrinth. The maze is built on a giant grid, with walls that randomly move, opening and closing paths like Daedalus’s trap come alive. At the far edge, the Minotaur lurks, always aware of the hunted’s position, relentless in pursuit. At the center lies the escape ladder, the only way out, always visible but never easy to reach. The hunted must survive monsters, gather equipment, and use shifting walls to their advantage, while the Minotaur’s goal remains simple: catch them before they escape.
 
 Gameplay
 - Maze Structure
