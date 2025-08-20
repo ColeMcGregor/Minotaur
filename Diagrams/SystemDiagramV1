@@ -1,0 +1,218 @@
+@startuml
+
+' ──────────────── CORE ────────────────
+package "core" {
+    class GameLoop {
+        +run(): void
+    }
+
+    class TurnManager {
+        +currentSide: Side
+        +startRound(): void
+        +beginTurn(actor: Actor): void
+        +commitAction(action: Action): Result
+        +endTurn(): void
+    }
+
+    enum Side {
+        Hunted
+        Minotaur
+    }
+
+    class EventBus {
+        +publish(evt)
+        +subscribe(type)
+    }
+
+    class RNG
+}
+
+' ──────────────── WORLD ────────────────
+package "world" {
+    class MazeState {
+        +isWall(cell: Cell): Boolean
+        +neighbors(cell: Cell): List<Cell>
+    }
+
+    class Cell
+}
+
+' ──────────────── ENTITIES ────────────────
+package "entities" {
+    interface Actor {
+        +id: Int
+    }
+
+    class Hunted
+    class Minotaur
+
+    class Position {
+        +cell: Cell
+    }
+
+    class Stats {
+        +baseAP: Int
+        +currentAP: Int
+        +speed: Int
+    }
+
+    class Inventory {
+        +items: List<Item>
+        +consume(item: Item): void
+    }
+
+    class StatusEffects {
+        +effects: List<Effect>
+    }
+}
+
+' ──────────────── CONTROLLERS ────────────────
+package "controllers" {
+    interface Controller {
+        +chooseAction(ctx: DecisionContext): Action
+    }
+
+    class HumanController
+    class HuntedAIController
+    class MinotaurAIController
+
+    class DecisionContext {
+        +maze: MazeState
+        +self: Actor
+        +opponent: Actor
+        +apRemaining: Int
+        +vision: List<Cell>
+        +rng: RNG
+    }
+}
+
+' ──────────────── RULES & SERVICES ────────────────
+package "rules" {
+    class RulesEngine {
+        +validate(action: Action, ctx: ActionContext): Result
+    }
+
+    class ActionContext {
+        +maze: MazeState
+        +pos: Position
+        +inv: Inventory
+        +stats: Stats
+        +effects: StatusEffects
+    }
+
+    class Pathfinding {
+        +nextStep(from: Cell, to: Cell, maze: MazeState): Cell
+    }
+
+    class FOV {
+        +visibleFrom(cell: Cell, maze: MazeState): List<Cell>
+    }
+}
+
+' ──────────────── ACTIONS ────────────────
+package "actions" {
+    abstract class Action {
+        +costAP: Int
+        +apply(actor: Actor, ctx: ActionContext): Result
+    }
+
+    class MoveAction {
+        +target: Cell
+    }
+
+    class UseItemAction {
+        +item: Item
+    }
+
+    class TeleportAction {
+        +target: Cell
+        +range: Int
+    }
+
+    class PhaseMoveAction {
+        +target: Cell
+    }
+}
+
+' ──────────────── ITEMS & EFFECTS ────────────────
+package "items" {
+    abstract class Item {
+        +toAction(ctx: ActionContext): Action
+    }
+
+    class Potion
+    class TeleportCharm {
+        +range: Int
+    }
+    class PhaseStone
+    class ActionAmulet {
+        +bonusAP: Int
+    }
+}
+
+package "effects" {
+    abstract class Effect {
+        +onApply(stats: Stats): void
+    }
+
+    class AddAPEffect {
+        +delta: Int
+    }
+
+    class PhaseEffect {
+        +duration: Int
+    }
+}
+
+' =======================
+' Associations with concise labels
+' =======================
+
+GameLoop --> TurnManager : "controls turns"
+GameLoop --> EventBus : "fires events"
+GameLoop --> RNG : "rolls randomness"
+
+TurnManager --> MazeState : "checks map"
+TurnManager --> RNG : "random effects"
+
+Hunted --> Position : "location"
+Hunted --> Stats : "action points"
+Hunted --> Inventory : "items"
+Hunted --> StatusEffects : "effects"
+
+Minotaur --> Position : "location"
+Minotaur --> Stats : "action points"
+Minotaur --> Inventory : "items"
+Minotaur --> StatusEffects : "effects"
+
+Hunted --> Controller : "decision input"
+Minotaur --> Controller : "AI control"
+Controller --> DecisionContext : "reads context"
+
+TurnManager --> RulesEngine : "validate/apply"
+TurnManager --> FOV : "visibility"
+TurnManager --> Pathfinding : "pathfinding"
+
+RulesEngine --> ActionContext : "uses state"
+RulesEngine --> MazeState : "check walls"
+RulesEngine --> Inventory : "check items"
+RulesEngine --> StatusEffects : "check effects"
+RulesEngine --> Stats : "adjust AP"
+
+Action <|-- MoveAction : "move cell"
+Action <|-- UseItemAction : "use item"
+Action <|-- TeleportAction : "teleport"
+Action <|-- PhaseMoveAction : "phase move"
+
+Item <|-- Potion : "heal/buff"
+Item <|-- TeleportCharm : "teleport item"
+Item <|-- PhaseStone : "phase item"
+Item <|-- ActionAmulet : "extra AP"
+
+Effect <|-- AddAPEffect : "+AP"
+Effect <|-- PhaseEffect : "phase"
+
+Inventory --> Item : "contains"
+StatusEffects --> Effect : "applies"
+
+@enduml
