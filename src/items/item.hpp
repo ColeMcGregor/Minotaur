@@ -6,18 +6,22 @@
 namespace minotaur {
 
 /**
- * @brief Base item type. Items *produce* Actions when used.
- * 
- * @author @Cole_McGregor
- * @date 2025-08-20
- * @version 1.0.0
- * @copyright Copyright (c) 2025 Cole McGregor
- * @note This is a base class for all items
- * @note Items must be used as an action, and cause effects by being held or used
+ * @brief Base item type. Items are played as Actions and/or grant passive Effects.
+ *
+ * Examples:
+ *  - TeleportCharm: toAction(ctx) -> TeleportAction (blink to any visible cell).
+ *  - HasteAmulet: grantsPassive() -> true; makePassiveEffect() -> +AP effect while equipped.
+ *  - FogLantern:   grantsPassive() -> true; makePassiveEffect() -> increases FOV radius.
+ *
+ * Author:   @Cole_McGregor
+ * Date:     2025-08-21
+ * Version:  1.0.1
+ * Note:     Items must be used via an Action to do active things; some also apply passive Effects.
  */
 
- // Forward declarations
+// Forward declarations (keep headers light)
 class Action;
+class Effect;
 
 class Item {
 public:
@@ -26,14 +30,26 @@ public:
     /// Human-readable name for UI/logs.
     virtual const std::string& name() const = 0;
 
-    /// Create the Action this item performs in the current context.
-    /// (Return nullptr to indicate "cannot use now".)
+    /**
+     * Create the Action this item performs when actively used (e.g., Teleport).
+     * Return nullptr to indicate "cannot use now" (e.g., no valid target in sight).
+     * Validation of legality is still done by the Action/RulesEngine.
+     */
     virtual std::unique_ptr<Action> toAction(const ActionContext& ctx) const = 0;
 
-    /// Whether this item is consumed on use (artifacts can override to false, for passove effects)
+    /**
+     * Passive effect support (while held/equipped).
+     * Override to return true and supply a concrete Effect via makePassiveEffect().
+     */
+    virtual bool grantsPassive() const { return false; }
+
+    /// Build the passive Effect instance this item provides (nullptr if none).
+    virtual std::unique_ptr<Effect> makePassiveEffect() const { return nullptr; }
+
+    /// Whether the item is consumed on active use (artifacts can override to false).
     virtual bool consumesOnUse() const { return true; }
 };
 
 using ItemPtr = std::unique_ptr<Item>;
 
-} 
+} // namespace minotaur
