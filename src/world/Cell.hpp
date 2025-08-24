@@ -1,6 +1,6 @@
 #pragma once
 
-namespace minotaur::world {
+namespace minotaur {
 /**
  * @brief A cell in the world
  * 
