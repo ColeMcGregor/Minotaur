@@ -1,0 +1,398 @@
+@startuml
+skinparam linetype ortho
+skinparam left to right
+
+' ──────────────── CORE ────────────────
+package "core" {
+
+    class GameLoop {
+        +run(): void
+    }
+
+    class TurnManager {
+        +currentSide: Side
+        +actionCount: Int
+        +startRound(): void
+        +beginTurn(entity: Entity): void
+        +commitAction(action: Action): Result
+        +endTurn(): void
+    }
+
+    enum Side {
+        Hunted
+        Minotaur
+    }
+
+    class EventBus {
+        +publish(evt: Event): void
+        +subscribe(type: EventType, handler): void
+    }
+
+    enum EventType {
+        TurnStarted
+        ActionCommitted
+        LootResolved
+        MazeShifted
+        HPChanged
+        InventoryChanged
+    }
+
+    class Event {
+        +type: EventType
+        +payload: Map
+        +timestamp: Long
+    }
+
+    class RNG {
+        +seed(s: Long): void
+        +uniformInt(lo: Int, hi: Int): Int
+        +uniform01(): Float
+        +rollD6(): Int
+        +rollD6(quantity: Int): Int
+    }
+}
+
+' ──────────────── WORLD ────────────────
+package "world" {
+
+    class Cell {
+        +x: Int
+        +y: Int
+        +north: Boolean
+        +east: Boolean
+        +south: Boolean
+        +west: Boolean
+    }
+
+    class MazeState {
+        +isWall(cell: Cell): Boolean
+        +neighbors(cell: Cell): List<Cell>
+        +toggleWall(cell: Cell, dir: Direction): void
+    }
+}
+
+' ──────────────── ENTITIES ────────────────
+package "entities" {
+
+    interface Entity {
+        +id: Int
+    }
+
+    class Hunted {
+    }
+    
+    package "monsters" {
+        abstract class Monster {
+        }
+        class Minotaur {
+        }
+        class Slime {
+        }
+        class Shade {
+        }
+        class Mimic {
+        }
+        class Cyclops {
+        }
+        class Rat {
+        }
+    }
+
+    class Chest {
+        +openChest(): Item
+        +isMimic: Boolean
+    }
+    
+    package "components" as components{
+      class Position {
+          +cell: Cell
+      }
+  
+      class Stats {
+          +baseAP: Int
+          +AP: Int
+          +baseSpeed: Int
+          +Speed: Int
+          +baseAtk: Int
+          +Atk: Int
+          +baseDef: Int
+          +Def: Int
+          +baseHP: Int
+          +HP: Int
+      }
+  
+      class Inventory {
+          +items: List<Item>
+          +add(item: Item): Boolean
+          +takeByIndex(idx: Int): Item
+      }
+  
+      class StatusEffects {
+          +effects: List<Effect>
+      }
+    }
+}
+
+' ──────────────── CONTROLLERS ────────────────
+package "controllers" {
+
+    interface Controller {
+        +chooseAction(ctx: DecisionContext): Action
+    }
+
+    class HumanController {
+    }
+
+    class HuntedAIController {
+    }
+
+    class MinotaurAIController {
+    }
+    
+    class MonsterAIController {
+    }
+
+    class DecisionContext {
+        +maze: MazeState
+        +self: Entity
+        +opponent: Entity
+        +apRemaining: Int
+        +vision: List<Cell>
+        +rng: RNG
+    }
+}
+' ──────────────── AI ────────────────
+package "AI" as AI {
+
+    class Pathfinding {
+        +nextStep(from: Cell, to: Cell, maze: MazeState): Cell
+    }
+
+    class FOV {
+        +visibleFrom(cell: Cell, maze: MazeState): List<Cell>
+    }
+    
+    class MazeShifter {
+        +actionsPerShift: Int
+        +maybeShift(actionCount: Int, maze: MazeState, rng: RNG): Boolean
+    }
+
+}
+
+' ──────────────── RULES & SERVICES ────────────────
+package "rules" {
+
+    class RulesEngine {
+        +validate(action: Action, ctx: ActionContext): Result
+    }
+
+    class ActionContext {
+        +maze: MazeState
+        +pos: Position
+        +inv: Inventory
+        +stats: Stats
+        +effects: StatusEffects
+    }
+
+    class LootResolver {
+        roll(rng: RNG): Int
+        rollRange(rng: RNG, upperBound: Int, lowerBound: Int)
+        resolveLootName(table: LootTable, index: Int): String
+        depositLootByName(name: String, inv: Inventory): void
+    }
+}
+
+' ──────────────── ACTIONS ────────────────
+package "actions" as actions{
+
+    abstract class Action {
+        +costAP: Int
+        +apply(entity: Entity, ctx: ActionContext): Result
+    }
+
+    class MoveAction {
+        +target: Cell
+    }
+
+    class TeleportAction {
+        +target: Cell
+        +range: Int
+        +mustBeVisible: Boolean
+    }
+
+    class PhaseMoveAction {
+        +target: Cell
+    }
+
+    class TransferItemAction {
+        +sourceLabel: String
+        +sourceIndex: Int
+    }
+}
+
+' ──────────────── ITEMS & EFFECTS ────────────────
+package "items" as items{
+
+    abstract class Item {
+        +causeAction(ctx: ActionContext): Action
+        +grantEffect(): Boolean
+        +consumesOnUse(): Boolean
+    }
+
+    class Potion {
+    }
+
+    class TeleportCharm {
+        +range: Int
+    }
+
+    class PhaseStone {
+    }
+    
+    class EnchantedHammer {
+    }
+    
+    class JerichoHorn {
+    }
+
+    class HasteAmulet {
+        +bonusAP: Int
+    }
+    
+    class ThievesTrustedKnife {
+        +bonusSpeed: Int
+        +bonusAttack: Int
+    }
+    
+    class BarbariansGreatAxe {
+        +bonusAttack: Int
+    }
+    
+    class SharpSword {
+        +bonusAttack: Int
+    }
+        
+    class CuriousLamp {
+        +FovBoostEffect: Int 
+      }
+      
+    package "lootTables" as lootTables {
+        class LootTable2D6 {
+            +names: String[13]
+            +set(index: Int, name: String): void
+            +getNameForRoll(index: Int): String
+        }
+        
+        class LootTable3D6 {
+        +names: String[19]
+            +set(index: Int, name: String): void
+            +getNameForRoll(index: Int): String
+        }
+    }
+}
+
+package "effects" as effects{
+
+    abstract class Effect {
+        +onApply(stats: Stats): void
+        +onTick(stats: Stats): void
+        +onRemove(stats: Stats): void
+        +expired(): Boolean
+    }
+
+    class APEffect {
+        +APChange: Int
+    }
+
+    class FovEffect {
+        +radiusChange: Int
+    }
+
+    class speedEffect {
+        +speedChange: Int
+    }
+    
+    class atkEffect {
+        +atkChange: Int
+    }
+
+    class defEffect {
+        +defChange: Int
+    }
+
+    class hpEffect {
+        +hpChange: Int
+    }   
+}
+
+' ──────────────── RELATIONSHIPS (explicit labels) ────────────────
+
+GameLoop --> TurnManager : "runs turn cycle"
+GameLoop --> EventBus : "publish lifecycle events"
+GameLoop --> RNG : "random generator"
+
+TurnManager --> MazeState : "queries map / validates moves"
+TurnManager --> RNG : "random checks"
+TurnManager --> RulesEngine : "validate+apply action"
+TurnManager --> FOV : "compute vision"
+TurnManager --> Pathfinding : "path requests"
+TurnManager --> MazeShifter : "cause wall shifts"
+TurnManager --> EventBus : "pub Turn/Action info"
+
+MazeShifter --> MazeState : "toggles cardinal wall flags"
+MazeShifter --> RNG : "chooses walls to shift"
+MazeShifter --> EventBus : "publishes MazeShifted"
+MazeState --> Cell : "owns grid cells"
+MazeState --> Direction : "uses directions"
+
+Hunted --|> Entity : "is an"
+Hunted --> components : "is made up of"
+
+Minotaur --|> Entity : "is an"
+Minotaur --|> entities.monsters.Monster : "form of"
+Minotaur --> components : "is made up of"
+
+
+Chest --|> Entity : "is an"
+Chest --> components : "is made up of"
+
+entities.monsters.Monster --|> Entity : "is an"
+entities.monsters.Monster --> components : "is made up of"
+
+Slime --|> entities.monsters.Monster : "form of"
+Shade --|> entities.monsters.Monster : "form of"
+Mimic --|> entities.monsters.Monster : "form of"
+Cyclops --|> entities.monsters.Monster : "form of"
+Rat --|> entities.monsters.Monster : "form of"
+
+
+Controller --> DecisionContext : "reads to choose action"
+
+RulesEngine --> ActionContext : "reads/writes via context"
+RulesEngine --> MazeState : "checks walls/visibility"
+RulesEngine --> Inventory : "adds/consumes items"
+RulesEngine --> StatusEffects : "applies/removes effects"
+RulesEngine --> Stats : "adjusts AP/HP"
+
+Item <|-- Potion                 : "on use → effect"
+Item <|-- TeleportCharm          : "teleport inside fov"
+Item <|-- PhaseStone             : "phase move through wall"
+Item <|-- EnchantedHammer        : "build wall"
+Item <|-- JerichoHorn            : "collapse wall"
+Item <|-- HasteAmulet            : "+AP"
+Item <|-- ThievesTrustedKnife    : "+Speed/+ Medium Attack"
+Item <|-- BarbariansGreatAxe     : "+Large Attack"
+Item <|-- SharpSword             : "+Small Attack"
+Item <|-- CuriousLamp            : "+FOV radius"
+
+Inventory --> Item : "contains"
+StatusEffects --> Effect : "applies"
+
+rules.LootResolver --> items.LootTable2D6 : "lookup by index"
+rules.LootResolver --> RNG : "rolls 2d6"
+Chest --> rules.LootResolver : "requests loot"
+entities.monsters.Monster --> rules.LootResolver : "requests loot"
+rules.LootResolver --> EventBus : "publishes LootResolved(name,sum)"
+rules.LootResolver --> Chest : "if '2', Mimic, else treasure"
+
+@enduml
