@@ -33,8 +33,10 @@ package "core" {
         ActionCommitted
         LootResolved
         MazeShifted
-        HPChanged
+        EffectApplied
         InventoryChanged
+        GameWon
+        GameEnded
     }
 
     class Event {
@@ -65,8 +67,8 @@ package "world" {
     }
 
     class MazeState {
-        +isWall(cell: Cell): Boolean
-        +neighbors(cell: Cell): List<Cell>
+        +Walls: VectorList<Cell>
+        +EntityLocations: VectorList<Cell>
         +toggleWall(cell: Cell, dir: Direction): void
     }
 }
@@ -91,6 +93,8 @@ package "entities" {
         class Shade {
         }
         class Mimic {
+        }
+        class Skeleton {
         }
         class Cyclops {
         }
@@ -364,6 +368,7 @@ Shade --|> entities.monsters.Monster : "form of"
 Mimic --|> entities.monsters.Monster : "form of"
 Cyclops --|> entities.monsters.Monster : "form of"
 Rat --|> entities.monsters.Monster : "form of"
+Skeleton --|> entities.monsters.Monster : "form of"
 
 
 Controller --> DecisionContext : "reads to choose action"
