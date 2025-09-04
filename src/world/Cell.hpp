@@ -22,6 +22,7 @@ struct Neighbor
     int y;
     //direction of the neighbor relative to the cell (northerly neighbor is 0, etc)
     int direction;
+    bool valid;
 };
 
 
