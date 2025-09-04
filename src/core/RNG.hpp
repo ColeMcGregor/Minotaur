@@ -31,15 +31,15 @@ public:
     // Uniform real in [0.0f, 1.0f). Never returns 1.0f. (somehwere between 0 and 1, not inclusive of 1)
     float uniform01();
 
-    // Roll 1d6 → {1..6}. (1-6) (simulates rolling a 6-sided die)
-    int rollD6();
+    // Roll 1d8 → {1..8}. (1-8) (simulates rolling a 8-sided die)
+    int rollD8();
 
-    // Roll Nd6 and return the SUM (e.g., quantity=2 → classic 2d6 bell curve). (simulates rolling any amount of 6-sided dice)
-    int rollD6(int quantity);
+    // Roll Nd8 and return the SUM (e.g., quantity=2 → classic 2d8 bell curve). (simulates rolling any amount of 8-sided dice)
+    int rollD8(int quantity);
 
 private:
     std::mt19937 engine_;                          // PRNG core (used to provide the psuedo-random numbers)
-    std::uniform_int_distribution<int> d6_;        // cached [1..6] distribution, just for speed
+    std::uniform_int_distribution<int> d8_;        // cached [1..8] distribution, just for speed
     std::uniform_real_distribution<float> unit_;   // cached [0.0f,1.0f), just for speed
 };
 

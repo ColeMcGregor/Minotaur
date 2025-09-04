@@ -17,7 +17,7 @@ namespace minotaur
  // Default constructor, uses a random seed
 RNG::RNG()
     : engine_{std::random_device{}()}
-    , d6_{1, 6}
+    , d8_{1, 8}
     , unit_{0.0f, 1.0f}
 {
 }
@@ -25,7 +25,7 @@ RNG::RNG()
 // Constructor that takes a seed value, used for testing
 RNG::RNG(std::uint64_t seedValue)
     : engine_{static_cast<std::mt19937::result_type>(seedValue)}
-    , d6_{1, 6}
+    , d8_{1, 8}
     , unit_{0.0f, 1.0f}
 {
 }
@@ -61,14 +61,14 @@ float RNG::uniform01()
     return unit_(engine_);
 }
 
-// Roll 1d6 → {1..6}.
-int RNG::rollD6()
+// Roll 1d8 → {1..8}.
+int RNG::rollD8()
 {
-    return d6_(engine_);
+    return d8_(engine_);    
 }
 
-// Roll Nd6 and return the SUM (e.g., quantity=2 → classic 2d6 bell curve).
-int RNG::rollD6(int quantity)
+// Roll Nd8 and return the SUM (e.g., quantity=2 → classic 2d8 bell curve)  .
+int RNG::rollD8(int quantity)
 {
     // If the quantity is less than or equal to 0, return 0
     if (quantity <= 0)
@@ -80,7 +80,7 @@ int RNG::rollD6(int quantity)
     int sum = 0;
     for (int i = 0; i < quantity; ++i)
     {
-        sum += d6_(engine_);
+        sum += d8_(engine_);
     }
     // Return the sum
     return sum;
