@@ -1,6 +1,7 @@
 #include "world/MazeState.hpp"
 #include <stdexcept>
 #include <vector>
+#include <iostream>
 
 /**
  * @brief The MazeState class represents the state of the maze, also holds the cells of the maze
@@ -23,7 +24,7 @@ namespace
  */
 inline Cell makeCell(int x, int y)
 {
-    //make the cell reference
+    //make the cell reference, from Cell.hpp
     Cell c;
     //set the coordinates
     c.x = x;
@@ -74,24 +75,24 @@ inline bool& wallRef(Cell& c, Direction d)
 MazeState::MazeState() = default;
 
 //make from a vector of ints, variable input accepted to make square, rectangle, or ragged
-MazeState MazeState::makeFromSpec(const std::vector<int>& spec)
+MazeState MazeState::generate(const std::vector<int>& specifications)
 {
-    //if the spec is empty, throw an invalid argument exception
-    if (spec.empty())
+    //if the specifications is empty, throw an invalid argument exception
+    if (specifications.empty())
     {
-        throw std::invalid_argument("MazeState::makeFromSpec: specification is empty");
+        throw std::invalid_argument("MazeState::generate: specification is empty");
     }
 
-    MazeState mzst; //make a new maze state reference
+    MazeState mzst; //make a new maze state reference, call it mzst
 
     //-------------------------------------------------------------SQUARE-------------------------------------------------------------
-    if (spec.size() == 1)
+    if (specifications.size() == 1)
     {
         // [N] square N x N
-        int n = spec[0];
+        int n = specifications[0];
         if (n < 0)
         {
-            n = 0;
+            throw std::invalid_argument("MazeState::generate: n is less than 0, A Square must have an area to exist");
         }
 
         mzst.grid_.resize(static_cast<std::size_t>(n));
@@ -111,10 +112,10 @@ MazeState MazeState::makeFromSpec(const std::vector<int>& spec)
             for (int x = 0; x < n; ++x)
             {
                 Cell& c = mzst.grid_[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
-                c.north = (y == 0);
-                c.south = (y == n - 1);
-                c.west  = (x == 0);
-                c.east  = (x == n - 1);
+                c.north = (y == 0);                                //if on the first row, the north wall is true
+                c.south = (y == n - 1);                            //if on the last row, the south wall is true
+                c.west  = (x == 0);                                //if on the first column, the west wall is true
+                c.east  = (x == n - 1);                            //if on the last column, the east wall is true
             }
         }
 
@@ -123,18 +124,18 @@ MazeState MazeState::makeFromSpec(const std::vector<int>& spec)
     }
 
     //-------------------------------------------------------------RECTANGLE-------------------------------------------------------------
-    if (spec.size() == 2)
+    if (specifications.size() == 2)
     {
         // [rows, cols] rectangle
-        int rows = spec[0];
-        int cols = spec[1];
+        int rows = specifications[0];
+        int cols = specifications[1];
         if (rows < 0)
         {
-            rows = 0;
+            throw std::invalid_argument("MazeState::generate: rows is less than 0");
         }
         if (cols < 0)
         {
-            cols = 0;
+            throw std::invalid_argument("MazeState::generate: cols is less than 0");
         }
 
         mzst.grid_.resize(static_cast<std::size_t>(rows));
@@ -154,10 +155,10 @@ MazeState MazeState::makeFromSpec(const std::vector<int>& spec)
             for (int x = 0; x < cols; ++x)
             {
                 Cell& c = mzst.grid_[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
-                c.north = (y == 0);
-                c.south = (y == rows - 1);
-                c.west  = (x == 0);
-                c.east  = (x == cols - 1);
+                c.north = (y == 0);                               //if on the first row, the north wall is true
+                c.south = (y == rows - 1);                         //if on the last row, the south wall is true
+                c.west  = (x == 0);                                //if on the first column, the west wall is true
+                c.east  = (x == cols - 1);                         //if on the last column, the east wall is true
             }
         }
 
@@ -167,21 +168,21 @@ MazeState MazeState::makeFromSpec(const std::vector<int>& spec)
 
     //-------------------------------------------------------------RAGGED-------------------------------------------------------------
     // [rows, len0, len1, ..., len{rows-1}]
-    int rows = spec[0];
+    int rows = specifications[0];
     if (rows < 0)
     {
         rows = 0;
     }
-    if (rows + 1 > static_cast<int>(spec.size()))
-    {
-        throw std::invalid_argument("MazeState::makeFromSpec: ragged requires rows+1 entries");
+    //TODO: check if this is corrrect, might need to be rows instead of rows + 1
+    if (specifications.size() < static_cast<std::size_t>(rows + 1)) {
+                throw std::invalid_argument("MazeState::generate: ragged requires rows+1 entries");
     }
 
     mzst.grid_.resize(static_cast<std::size_t>(rows));
 
     for (int y = 0; y < rows; ++y)
     {
-        int cols = spec[1 + y];
+        int cols = specifications[1 + y];
         if (cols < 0)
         {
             cols = 0;
@@ -194,72 +195,98 @@ MazeState MazeState::makeFromSpec(const std::vector<int>& spec)
             row.push_back(makeCell(x, y));
         }
     }
-    //TODO: Check for validity of this ragged neighbor checker
-    // Walls for ragged: a side is a wall if no neighbor cell exists on that side.
+    /**
+     * @brief Checks if a neighbor exists in the given direction, not a different function, but a lambda function still inside generate
+     * 
+     * @param x The x coordinate of the cell
+     * @param y The y coordinate of the cell
+     * @param d The direction to check
+     * @return True if a neighbor exists in the given direction, false otherwise
+     * @Warning: hasNeighbor WILL ONLY WORK BELOW, AND NOWHERE ELSE
+     */
     auto hasNeighbor = [&mzst](int x, int y, Direction d) -> bool
     {
         switch (d)
         {
+            //check if the north neighbor exists
             case Direction::North:
             {
+                //get the y coordinate of the north neighbor
                 const int ny = y - 1;
-                return ny >= 0
+                //check if the north neighbor exists
+                return ny >= 0 //check if the north neighbor is in bounds
                     && ny < static_cast<int>(mzst.grid_.size())
-                    && x >= 0
+                    && x >= 0 //check if the x coordinate of the north neighbor is in bounds
                     && x < static_cast<int>(mzst.grid_[static_cast<std::size_t>(ny)].size());
             }
+            //check if the south neighbor exists
             case Direction::South:
             {
+                //get the y coordinate of the south neighbor
                 const int ny = y + 1;
-                return ny >= 0
+                //check if the south neighbor exists
+                return ny >= 0 //check if the south neighbor is in bounds
                     && ny < static_cast<int>(mzst.grid_.size())
-                    && x >= 0
+                    && x >= 0 //check if the x coordinate of the south neighbor is in bounds
                     && x < static_cast<int>(mzst.grid_[static_cast<std::size_t>(ny)].size());
             }
+            //check if the east neighbor exists
             case Direction::East:
             {
-                return y >= 0
+                //get the y coordinate of the east neighbor
+                return y >= 0 //check if the east neighbor is in bounds
                     && y < static_cast<int>(mzst.grid_.size())
-                    && (x + 1) >= 0
+                    && (x + 1) >= 0 //check if the x coordinate of the east neighbor is in bounds
                     && (x + 1) < static_cast<int>(mzst.grid_[static_cast<std::size_t>(y)].size());
             }
+            //check if the west neighbor exists
             case Direction::West:
             {
-                return y >= 0
+                //get the y coordinate of the west neighbor
+                return y >= 0 //check if the west neighbor is in bounds
                     && y < static_cast<int>(mzst.grid_.size())
-                    && (x - 1) >= 0
+                    && (x - 1) >= 0 //check if the x coordinate of the west neighbor is in bounds
                     && (x - 1) < static_cast<int>(mzst.grid_[static_cast<std::size_t>(y)].size());
             }
         }
-        return false;
+        return false; //return false if the neighbor does not exist, but every cell should have at least one neighbor, as no cell should be isolated
     };
 
+    /**
+     * @brief this portion of the code will walls off the outside of the maze. 
+     * it also causes the whole maze to be a walled off room, so this happens BEFORE the walls are finalized for the maze
+     */
+    //loop through each row in the maze
     for (int y = 0; y < rows; ++y)
     {
         const int cols = static_cast<int>(mzst.grid_[static_cast<std::size_t>(y)].size());
+        //loop through each cell in the row
         for (int x = 0; x < cols; ++x)
         {
+            //get the cell at the given coordinates
             Cell& c = mzst.grid_[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
-            c.north = !hasNeighbor(x, y, Direction::North);
+            //check neighbors, and set the walls to true if there isnt a neighbor in the given direction
+            c.north = !hasNeighbor(x, y, Direction::North); 
             c.south = !hasNeighbor(x, y, Direction::South);
             c.west  = !hasNeighbor(x, y, Direction::West);
             c.east  = !hasNeighbor(x, y, Direction::East);
         }
     }
-
+    //finalize the neighbors
     mzst.finalizeNeighbors();
+    //return the maze state
     return mzst;
 }
 
 /**
  * @brief Makes a maze state from an initializer list of ints
- * @note this is a wrapper for the makeFromSpec function that takes a vector of ints
- * @param spec The initializer list of ints
+ * @note this is a wrapper for the generate function that takes a vector of ints
+ * @param specifications The initializer list of ints
  * @return The maze state
  */
-MazeState MazeState::makeFromSpec(std::initializer_list<int> spec)
+MazeState MazeState::generate(std::initializer_list<int> specifications)
 {
-    return makeFromSpec(std::vector<int>{spec});
+    return generate(std::vector<int>{specifications});
 }
 
 /**
@@ -400,6 +427,9 @@ void MazeState::finalizeNeighbors()
             c.nbr[3].valid = inBounds(c.nbr[3].x, c.nbr[3].y); //check if the west neighbor is in bounds, if it is it exists and can be added
             if (c.nbr[3].valid) { ++count; } //if the west neighbor is in bounds, increment the neighbor count
 
+
+            //a print statemennt for showing a neighbor count for each cell, used for testing and debugging
+            std::cout << "Neighbor count after finalizing cell at (" << x << ", " << y << "): " << count << std::endl;
             c.nbrCount = count; //set the neighbor count to the count of valid neighbors
         }
     }

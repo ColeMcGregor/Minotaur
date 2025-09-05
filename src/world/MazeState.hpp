@@ -36,8 +36,8 @@ public:
      * @param spec
      * @return MazeState
      */
-    static MazeState makeFromSpec(const std::vector<int>& spec); //make from a vector of ints
-    static MazeState makeFromSpec(std::initializer_list<int> spec); //make from a initializer list of ints
+    static MazeState generate(const std::vector<int>& spec); //make from a vector of ints
+    static MazeState generate(std::initializer_list<int> spec); //make from a initializer list of ints
 
     // Dimensions (ragged-aware).
     int rows() const;
