@@ -1,48 +1,65 @@
 #pragma once
 
 namespace minotaur::world {
-/**
- * @brief A cell in the world
- * 
- * @author @Cole_McGregor
- * @date 2025-08-20
- * @version 1.0.0
- * @copyright Copyright (c) 2025 Cole McGregor
- * @note This is a simple struct that represents a cell in the world
- */
 
- /**
-  * @brief A neighbor of a cell
-  * @author @Cole_McGregor
-  * @note this is small struct to hold coordinates of any cell neighbors
-  */
+/**
+ * @brief Cardinal directions for walls and adjacency.
+ *
+ * @author @Cole_McGregor
+ * @date 2026-04-21
+ * @version 1.1.0
+ * @copyright Copyright (c) 2025 Cole McGregor
+ */
+enum class Direction
+{
+    North = 0,
+    East  = 1,
+    South = 2,
+    West  = 3
+};
+
+/**
+ * @brief A cached neighbor entry for a cell.
+ *
+ * Stores the coordinates of an adjacent active cell, plus the direction of that
+ * neighbor relative to the owning cell.
+ */
 struct Neighbor
 {
-    int x;
-    int y;
-    //direction of the neighbor relative to the cell (northerly neighbor is 0, etc)
-    int direction;
-    bool valid;
+    int x = -1;
+    int y = -1;
+    Direction direction = Direction::North;
+    bool valid = false;
 };
 
+/**
+ * @brief A cell in the world backing grid.
+ *
+ * A cell may exist in the backing grid but be inactive, meaning it is not part
+ * of the current maze footprint.
+ */
+struct Cell
+{
+    int x = 0;
+    int y = 0;
 
-struct Cell {
-    int x = 0;                       // x coordinate
-    int y = 0;                       // y coordinate
-    // flags to reprensent the state of each wall of the cell, false means the wall is down
-    //these are changeable during the game to simulate the changing of the maze
+    // Whether this cell is part of the current maze footprint.
+    bool active = false;
+
+    // Wall flags. true means a wall is present.
     bool north = false;
     bool south = false;
-    bool east = false;
-    bool west = false;
+    bool east  = false;
+    bool west  = false;
 
-    //list of neighbors
-    Neighbor nbr[4];   //to cache the neighbors of the cell, makes math easier
-    //count of neighbors, will hold how many neighbors are present
-    int      nbrCount; //to be used for some algorithms
-    
-    //operator overload to allow comparison of cells
-    constexpr bool operator==(const Cell& o) const { return x == o.x && y == o.y; }
+    // Cached adjacency to active neighboring cells only.
+    Neighbor nbr[4] = {};
+    int nbrCount = 0;
+
+    constexpr bool operator==(const Cell& o) const
+    {
+        return x == o.x && y == o.y;
+    }
 };
 
-} 
+} // namespace minotaur::world

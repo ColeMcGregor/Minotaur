@@ -1,5 +1,5 @@
 @startuml
-skinparam linetype ortho
+skinparam linetype polyline
 skinparam left to right
 
 ' ──────────────── CORE ────────────────
@@ -61,8 +61,8 @@ package "core" {
         +seed(s: Long): void
         +uniformInt(lo: Int, hi: Int): Int
         +uniform01(): Float
-        +rollD6(): Int
-        +rollD6(quantity: Int): Int
+        +rollD8(): Int
+        +rollD8(quantity: Int): Int
     }
 }
 
@@ -258,21 +258,34 @@ package "items" as items{
         +grantEffect(): Boolean
         +consumesOnUse(): Boolean
     }
-
+    
+    package "lootTables" as lootTables {
+        class LootTable2d8 {
+            +names: String[17]
+            +set(index: Int, name: String): void
+            +getNameForRoll(index: Int): String
+        }
+    }
+    
+    package "individual" {
     class Potion {
+    +currentHealth
     }
 
     class TeleportCharm {
-        +range: Int
+        +teleportToSpotinFOV()
     }
 
     class PhaseStone {
+        +wallToPhaseThrough()
     }
     
     class EnchantedHammer {
+        +wallToRaiseUp()
     }
     
     class JerichoHorn {
+        +wallToDestroy()
     }
 
     class HasteAmulet {
@@ -296,18 +309,27 @@ package "items" as items{
         +FovBoostEffect: Int 
       }
       
-    package "lootTables" as lootTables {
-        class LootTable2D6 {
-            +names: String[13]
-            +set(index: Int, name: String): void
-            +getNameForRoll(index: Int): String
-        }
-        
-        class LootTable3D6 {
-        +names: String[19]
-            +set(index: Int, name: String): void
-            +getNameForRoll(index: Int): String
-        }
+    class EyeOfKnossos {
+        +proximityLevel: Int
+    }
+
+    class OracularLens {
+        +makeVisibleAllinFOV: Boolean
+    }
+
+    class HerosChalice {
+        +bonusActions: Int
+    }
+    
+    class AriadnesThread {
+        +returnLocation(int x, int y): Boolean
+        +status(): int
+    }
+
+    class SuspiciousCompass {
+        +locationOfObject(intx, int y): bool
+    }  
+      
     }
 }
 
@@ -414,12 +436,18 @@ Item <|-- ThievesTrustedKnife    : "+Speed/+ Medium Attack"
 Item <|-- BarbariansGreatAxe     : "+Large Attack"
 Item <|-- SharpSword             : "+Small Attack"
 Item <|-- CuriousLamp            : "+FOV radius"
+Item <|-- EyeOfKnossos         : "shows proximity to Minotaur"
+Item <|-- OracularLens         : "reveals full FOV"
+Item <|-- HerosChalice         : "+Actions this turn"
+Item <|-- AriadnesThread       : "return to marked location"
+Item <|-- SuspiciousCompass    : "nearest obj coords"
+
 
 Inventory --> Item : "contains"
 StatusEffects --> Effect : "applies"
 
-rules.LootResolver --> items.LootTable2D6 : "lookup by index"
-rules.LootResolver --> RNG : "rolls 2d6"
+rules.LootResolver --> items.lootTables: "lookup by index"
+rules.LootResolver --> RNG : "rolls 2d8"
 Chest --> rules.LootResolver : "requests loot"
 entities.monsters.Monster --> rules.LootResolver : "requests loot"
 rules.LootResolver --> EventBus : "publishes LootResolved(name,sum)"
