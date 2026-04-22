@@ -5,369 +5,128 @@
 #define RAYGUI_IMPLEMENTATION
 #include "third_party/raygui/src/raygui.h"
 
+#include "visualization/MazePanel.hpp"
+#include "visualization/MazeRenderer.hpp"
+
 #include "world/MazeGenerator.hpp"
 
 using namespace minotaur::world;
+using namespace minotaur::visualization;
 
-// ----- layout -----
-static constexpr int SCREEN_WIDTH = 1500;
-static constexpr int SCREEN_HEIGHT = 950;
-
-static constexpr int PANEL_X = 16;
-static constexpr int PANEL_Y = 16;
-static constexpr int PANEL_WIDTH = 280;
-static constexpr int PANEL_HEIGHT = SCREEN_HEIGHT - 32;
-
-static constexpr int MAZE_ORIGIN_X = PANEL_X + PANEL_WIDTH + 24;
-static constexpr int MAZE_ORIGIN_Y = 24;
-
-static constexpr int CELL_SIZE = 28;
-static constexpr int WALL_THICKNESS = 2;
-
-// ----- UI state -----
-
-struct HarnessUiState
+namespace
 {
-    MazeBuildConfig draftConfig{};
-    MazeBuildConfig activeConfig{};
+    constexpr int SCREEN_WIDTH = 1500;
+    constexpr int SCREEN_HEIGHT = 950;
 
-    MazeState activeMaze{1, 1};
+    constexpr int MAZE_ORIGIN_X = MazePanel::PANEL_X + MazePanel::PANEL_WIDTH + 24;
+    constexpr int MAZE_ORIGIN_Y = 24;
 
-    bool editBackingWidth = false;
-    bool editBackingHeight = false;
-    bool editMazeWidth = false;
-    bool editMazeHeight = false;
-
-    int shapeDropdownActive = 0;
-    bool shapeDropdownEdit = false;
-
-    std::string statusText = "Ready.";
-    bool hasGeneratedMaze = false;
-};
-
-// ----- validation helpers -----
-
-bool ValidateDraftConfig(const MazeBuildConfig& config, std::string& outError)
-{
-    if (config.backingWidth <= 0 || config.backingHeight <= 0)
+    struct HarnessState
     {
-        outError = "Backing grid dimensions must be greater than 0.";
-        return false;
-    }
+        MazeBuildConfig draftConfig{};
+        MazeBuildConfig activeConfig{};
+        MazeState activeMaze{1, 1};
 
-    if (config.mazeWidth <= 0 || config.mazeHeight <= 0)
-    {
-        outError = "Maze dimensions must \n be greater than 0.";
-        return false;
-    }
-
-    if (config.mazeWidth > config.backingWidth || config.mazeHeight > config.backingHeight)
-    {
-        outError = "Maze dimensions cannot \n exceed backing grid \n dimensions.";
-        return false;
-    }
-
-    if (((config.backingWidth - config.mazeWidth) % 2) != 0)
-    {
-        outError = "Backing width minus \n maze width must be even.";
-        return false;
-    }
-
-    if (((config.backingHeight - config.mazeHeight) % 2) != 0)
-    {
-        outError = "Backing height minus \n maze height must be even.";
-        return false;
-    }
-
-    outError.clear();
-    return true;
-}
-
-void TryRegenerate(HarnessUiState& ui)
-{
-    std::string validationError;
-    if (!ValidateDraftConfig(ui.draftConfig, validationError))
-    {
-        ui.statusText = validationError;
-        return;
-    }
-
-    try
-    {
-        ui.activeMaze = MazeGenerator::generate(ui.draftConfig);
-        ui.activeConfig = ui.draftConfig;
-        ui.hasGeneratedMaze = true;
-        ui.statusText = "Generation successful.";
-    }
-    catch (const std::exception& ex)
-    {
-        ui.statusText = std::string("Generation failed: ") + ex.what();
-    }
-}
-
-// ----- draw helpers -----
-
-void DrawCell(const Cell& c, int originX, int originY)
-{
-    const int px = originX + c.x * CELL_SIZE;
-    const int py = originY + c.y * CELL_SIZE;
-
-    if (c.active)
-    {
-        DrawRectangle(px, py, CELL_SIZE, CELL_SIZE, Color{185, 185, 185, 255});
-    }
-    else
-    {
-        DrawRectangle(px, py, CELL_SIZE, CELL_SIZE, Color{40, 40, 40, 255});
-    }
-}
-
-void DrawWalls(const Cell& c, int originX, int originY)
-{
-    if (!c.active) return;
-
-    const int left = originX + c.x * CELL_SIZE;
-    const int top = originY + c.y * CELL_SIZE;
-    const int right = left + CELL_SIZE;
-    const int bottom = top + CELL_SIZE;
-
-    if (c.north)
-        DrawRectangle(left, top, CELL_SIZE, WALL_THICKNESS, RAYWHITE);
-
-    if (c.south)
-        DrawRectangle(left, bottom - WALL_THICKNESS, CELL_SIZE, WALL_THICKNESS, RAYWHITE);
-
-    if (c.west)
-        DrawRectangle(left, top, WALL_THICKNESS, CELL_SIZE, RAYWHITE);
-
-    if (c.east)
-        DrawRectangle(right - WALL_THICKNESS, top, WALL_THICKNESS, CELL_SIZE, RAYWHITE);
-}
-
-void DrawGridLines(int w, int h, int originX, int originY)
-{
-    for (int x = 0; x <= w; ++x)
-    {
-        const int px = originX + x * CELL_SIZE;
-        DrawLine(px, originY, px, originY + h * CELL_SIZE, Color{80, 80, 80, 255});
-    }
-
-    for (int y = 0; y <= h; ++y)
-    {
-        const int py = originY + y * CELL_SIZE;
-        DrawLine(originX, py, originX + w * CELL_SIZE, py, Color{80, 80, 80, 255});
-    }
-}
-
-void DrawMaze(const MazeState& maze, int originX, int originY)
-{
-    for (int y = 0; y < maze.height(); ++y)
-    {
-        for (int x = 0; x < maze.width(); ++x)
-        {
-            const Cell& c = maze.cellAt(x, y);
-            DrawCell(c, originX, originY);
-        }
-    }
-
-    DrawGridLines(maze.width(), maze.height(), originX, originY);
-
-    for (int y = 0; y < maze.height(); ++y)
-    {
-        for (int x = 0; x < maze.width(); ++x)
-        {
-            const Cell& c = maze.cellAt(x, y);
-            DrawWalls(c, originX, originY);
-        }
-    }
-}
-
-void DrawUiPanel(HarnessUiState& ui)
-{
-    Rectangle panel = {
-        static_cast<float>(PANEL_X),
-        static_cast<float>(PANEL_Y),
-        static_cast<float>(PANEL_WIDTH),
-        static_cast<float>(PANEL_HEIGHT)
+        std::string statusText = "Ready.";
+        bool hasGeneratedMaze = false;
     };
 
-    GuiPanel(panel, "Maze Harness");
-
-    int x = PANEL_X + 16;
-    int y = PANEL_Y + 36;
-    const int labelWidth = 110;
-    const int valueWidth = 120;
-    const int rowHeight = 32;
-    const int gap = 10;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Backing Grid");
-    y += 24;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Width");
-    GuiValueBox(
-        Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y), static_cast<float>(valueWidth), static_cast<float>(rowHeight)},
-        nullptr,
-        &ui.draftConfig.backingWidth,
-        1,
-        200,
-        ui.editBackingWidth
-    );
-    if (GuiButton(Rectangle{static_cast<float>(x + labelWidth + valueWidth + 8), static_cast<float>(y), 28, static_cast<float>(rowHeight)}, ui.editBackingWidth ? "OK" : "..."))
+    bool validateDraftConfig(const MazeBuildConfig& config, std::string& outError)
     {
-        ui.editBackingWidth = !ui.editBackingWidth;
-        if (ui.editBackingWidth)
+        if (config.backingWidth <= 0 || config.backingHeight <= 0)
         {
-            ui.editBackingHeight = false;
-            ui.editMazeWidth = false;
-            ui.editMazeHeight = false;
+            outError = "Backing grid dimensions must be greater than 0.";
+            return false;
+        }
+
+        if (config.mazeWidth <= 0 || config.mazeHeight <= 0)
+        {
+            outError = "Maze dimensions must be greater than 0.";
+            return false;
+        }
+
+        if (config.mazeWidth > config.backingWidth || config.mazeHeight > config.backingHeight)
+        {
+            outError = "Maze dimensions cannot exceed backing grid dimensions.";
+            return false;
+        }
+
+        if (((config.backingWidth - config.mazeWidth) % 2) != 0)
+        {
+            outError = "Backing width minus maze width must be even.";
+            return false;
+        }
+
+        if (((config.backingHeight - config.mazeHeight) % 2) != 0)
+        {
+            outError = "Backing height minus maze height must be even.";
+            return false;
+        }
+
+        outError.clear();
+        return true;
+    }
+
+    void tryRegenerate(HarnessState& state)
+    {
+        std::string validationError;
+        if (!validateDraftConfig(state.draftConfig, validationError))
+        {
+            state.statusText = validationError;
+            return;
+        }
+
+        try
+        {
+            state.activeMaze = MazeGenerator::generate(state.draftConfig);
+            state.activeConfig = state.draftConfig;
+            state.hasGeneratedMaze = true;
+            state.statusText = "Generation successful.";
+        }
+        catch (const std::exception& ex)
+        {
+            state.statusText = std::string("Generation failed: ") + ex.what();
         }
     }
-    y += rowHeight + gap;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Height");
-    GuiValueBox(
-        Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y), static_cast<float>(valueWidth), static_cast<float>(rowHeight)},
-        nullptr,
-        &ui.draftConfig.backingHeight,
-        1,
-        200,
-        ui.editBackingHeight
-    );
-    if (GuiButton(Rectangle{static_cast<float>(x + labelWidth + valueWidth + 8), static_cast<float>(y), 28, static_cast<float>(rowHeight)}, ui.editBackingHeight ? "OK" : "..."))
-    {
-        ui.editBackingHeight = !ui.editBackingHeight;
-        if (ui.editBackingHeight)
-        {
-            ui.editBackingWidth = false;
-            ui.editMazeWidth = false;
-            ui.editMazeHeight = false;
-        }
-    }
-    y += rowHeight + 20;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Maze Footprint");
-    y += 24;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Width");
-    GuiValueBox(
-        Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y), static_cast<float>(valueWidth), static_cast<float>(rowHeight)},
-        nullptr,
-        &ui.draftConfig.mazeWidth,
-        1,
-        200,
-        ui.editMazeWidth
-    );
-    if (GuiButton(Rectangle{static_cast<float>(x + labelWidth + valueWidth + 8), static_cast<float>(y), 28, static_cast<float>(rowHeight)}, ui.editMazeWidth ? "OK" : "..."))
-    {
-        ui.editMazeWidth = !ui.editMazeWidth;
-        if (ui.editMazeWidth)
-        {
-            ui.editBackingWidth = false;
-            ui.editBackingHeight = false;
-            ui.editMazeHeight = false;
-        }
-    }
-    y += rowHeight + gap;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Height");
-    GuiValueBox(
-        Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y), static_cast<float>(valueWidth), static_cast<float>(rowHeight)},
-        nullptr,
-        &ui.draftConfig.mazeHeight,
-        1,
-        200,
-        ui.editMazeHeight
-    );
-    if (GuiButton(Rectangle{static_cast<float>(x + labelWidth + valueWidth + 8), static_cast<float>(y), 28, static_cast<float>(rowHeight)}, ui.editMazeHeight ? "OK" : "..."))
-    {
-        ui.editMazeHeight = !ui.editMazeHeight;
-        if (ui.editMazeHeight)
-        {
-            ui.editBackingWidth = false;
-            ui.editBackingHeight = false;
-            ui.editMazeWidth = false;
-        }
-    }
-    y += rowHeight + 20;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Shape");
-    if (GuiDropdownBox(
-        Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y), static_cast<float>(valueWidth + 36), static_cast<float>(rowHeight)},
-        "Rectangle;Ellipse",
-        &ui.shapeDropdownActive,
-        ui.shapeDropdownEdit
-    ))
-    {
-        ui.shapeDropdownEdit = !ui.shapeDropdownEdit;
-    }
-
-    ui.draftConfig.shape = (ui.shapeDropdownActive == 0) ? MazeShape::Rectangle : MazeShape::Ellipse;
-
-    y += rowHeight + 24;
-
-    if (GuiButton(Rectangle{static_cast<float>(x), static_cast<float>(y), 240.0f, 36.0f}, "Generate"))
-    {
-        ui.editBackingWidth = false;
-        ui.editBackingHeight = false;
-        ui.editMazeWidth = false;
-        ui.editMazeHeight = false;
-        ui.shapeDropdownEdit = false;
-        TryRegenerate(ui);
-    }
-
-    y += 52;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Rules");
-    y += 22;
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "- Maze dims must fit backing grid");
-    y += 18;
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "- Backing minus maze dims must be even");
-    y += 26;
-
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Status");
-    y += 22;
-    DrawText(ui.statusText.c_str(), x, y, 18, BLACK);
-
-    y += 44;
-    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Last Generated");
-    y += 22;
-
-    const std::string summary =
-        "Backing: " + std::to_string(ui.activeConfig.backingWidth) + " x " + std::to_string(ui.activeConfig.backingHeight) +
-        "\nMaze: " + std::to_string(ui.activeConfig.mazeWidth) + " x " + std::to_string(ui.activeConfig.mazeHeight) +
-        "\nShape: " + std::string((ui.activeConfig.shape == MazeShape::Rectangle) ? "Rectangle" : "Ellipse");
-
-    DrawText(summary.c_str(), x, y, 18, Color{200, 200, 200, 255});
 }
 
 int main()
 {
-    HarnessUiState ui;
+    HarnessState state;
+    MazePanel panel;
 
-    ui.draftConfig.backingWidth = 30;
-    ui.draftConfig.backingHeight = 30;
-    ui.draftConfig.mazeWidth = 24;
-    ui.draftConfig.mazeHeight = 24;
-    ui.draftConfig.shape = MazeShape::Rectangle;
+    state.draftConfig.backingWidth = 24;
+    state.draftConfig.backingHeight = 19;
+    state.draftConfig.mazeWidth = 22;
+    state.draftConfig.mazeHeight = 17;
+    state.draftConfig.shape = MazeShape::Rectangle;
+    state.draftConfig.algorithm = MazeAlgorithm::None;
 
-    ui.shapeDropdownActive = 0;
-
-    TryRegenerate(ui);
+    panel.syncFromConfig(state.draftConfig);
+    tryRegenerate(state);
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Maze Harness");
     SetTargetFPS(60);
+
+    MazeRenderer renderer;
 
     while (!WindowShouldClose())
     {
         BeginDrawing();
         ClearBackground(Color{20, 20, 20, 255});
 
-        if (ui.hasGeneratedMaze)
+        if (state.hasGeneratedMaze)
         {
-            DrawMaze(ui.activeMaze, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
+            renderer.drawMaze(state.activeMaze, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
         }
 
-        DrawUiPanel(ui);
+        const MazePanel::Result panelResult =
+            panel.draw(state.draftConfig, state.activeConfig, state.statusText);
+
+        if (panelResult.generatePressed)
+        {
+            tryRegenerate(state);
+        }
 
         EndDrawing();
     }

@@ -1,5 +1,6 @@
 #pragma once
 #include "world/MazeShape.hpp"
+#include "world/MazeAlgorithm.hpp"
 
 namespace minotaur::world {
 
@@ -23,6 +24,7 @@ struct MazeBuildConfig
 
     // shape of the active maze footprint, defaulting to rectangular
     MazeShape shape = MazeShape::Rectangle;
+    MazeAlgorithm algorithm = MazeAlgorithm::None;
 };
 
 } // namespace minotaur::world
