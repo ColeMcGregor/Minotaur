@@ -9,7 +9,8 @@ SRC = \
 	src/world/MazeState.cpp \
 	src/world/MazeGenerator.cpp \
 	src/world/MazeCarver.cpp \
-	src/world/MazeStepPrinter.cpp
+	src/world/MazeStepPrinter.cpp \
+	src/core/RNG.cpp
 
 OUT = harness.exe
 
