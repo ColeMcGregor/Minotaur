@@ -37,9 +37,15 @@ public:
     static void carve(MazeState& maze, MazeAlgorithm algorithm, std::vector<MazeStep>& steps);
 
 private:
+    //does nothing, voids out
     static void carveNone(MazeState& maze, std::vector<MazeStep>& steps);
+    //used for basic testing of maze=UI functions
     static void carveTestEasy(MazeState& maze, std::vector<MazeStep>& steps);
+    static void carveTestMed(MazeState& maze, std::vector<MazeStep>& steps);
+    static void carveTestHard(MazeState& maze, std::vector<MazeStep>& steps);
+    //True Maze algorithms
     static void carveDepthFirst(MazeState& maze, std::vector<MazeStep>& steps);
+    static void carvePrim(MazeState& maze, std::vector<MazeStep>& steps);
 
     static void applyAction(MazeState& maze, const CarveAction& action, int& stepNumber, std::vector<MazeStep>& steps);
 };

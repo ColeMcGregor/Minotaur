@@ -35,7 +35,8 @@ public:
     Result draw(
         minotaur::world::MazeBuildConfig& draftConfig,
         const minotaur::world::MazeBuildConfig& activeConfig,
-        const std::string& statusText
+        const std::string& statusText,
+        bool& stepMode
     );
 
 private:

@@ -30,6 +30,7 @@ namespace
         MazeBuildConfig activeConfig{};
         MazeState activeMaze{1, 1};
         std::vector<MazeStep> steps{};
+        bool stepMode = false;
 
         std::string statusText = "Ready.";
         bool hasGeneratedMaze = false;
@@ -85,12 +86,17 @@ namespace
             state.activeMaze = MazeGenerator::generate(state.draftConfig, state.steps);
             state.activeConfig = state.draftConfig;
             state.hasGeneratedMaze = true;
-            state.statusText = "Generation successful.";
+            state.statusText = state.stepMode
+            ? "Generation successful. Step mode enabled."
+            : "Generation successful. Instant mode enabled.";
 
-            for (const MazeStep& step : state.steps)
-            {
-                MazeStepPrinter::printStep(step);
-            }
+            if (!state.stepMode)
+                {
+                    for (const MazeStep& step : state.steps)
+                    {
+                        MazeStepPrinter::printStep(step);
+                    }
+                }
         }
         catch (const std::exception& ex)
         {
@@ -130,7 +136,7 @@ int main()
         }
 
         const MazePanel::Result panelResult =
-            panel.draw(state.draftConfig, state.activeConfig, state.statusText);
+        panel.draw(state.draftConfig, state.activeConfig, state.statusText, state.stepMode);
 
         if (panelResult.generatePressed)
         {

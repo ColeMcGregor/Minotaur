@@ -50,7 +50,8 @@ void MazePanel::syncToConfig(MazeBuildConfig& config) const
 MazePanel::Result MazePanel::draw(
     MazeBuildConfig& draftConfig,
     const MazeBuildConfig& activeConfig,
-    const std::string& statusText
+    const std::string& statusText,
+    bool& stepMode
 )
 {
     Result result{};
@@ -194,7 +195,19 @@ MazePanel::Result MazePanel::draw(
 
     syncToConfig(draftConfig);
 
-    y += rowHeight + 24;
+    y += rowHeight + 16;
+
+    // Step mode toggle
+    GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Step Mode");
+    GuiCheckBox(
+        Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y + 6), 20, 20},
+        "",
+        &stepMode
+    );
+
+    DrawText(stepMode ? "On" : "Off", x + labelWidth + 32, y + 6, 18, RAYWHITE);
+
+    y += rowHeight + 16;
 
     GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Rules");
     y += 22;
