@@ -13,7 +13,16 @@ namespace minotaur::world {
 enum class MazeAlgorithm
 {
     None,
-    DepthFirst
+
+    // Test patterns (for validating wall carving + rendering)
+    TestEasy,
+    TestMed,
+    TestHard,
+
+    // Real algorithms (to be implemented next)
+    DepthFirst,
+    Prim,
+    Kruskal
 };
 
 } // namespace minotaur::world

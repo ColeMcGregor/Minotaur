@@ -2,9 +2,11 @@
 
 #include <stdexcept>
 
+#include "world/MazeCarver.hpp"
+
 namespace minotaur::world {
 
-MazeState MazeGenerator::generate(const MazeBuildConfig& config)
+MazeState MazeGenerator::generate(const MazeBuildConfig& config, std::vector<MazeStep>& steps)
 {
     validateConfig(config);
 
@@ -13,7 +15,7 @@ MazeState MazeGenerator::generate(const MazeBuildConfig& config)
     formShape(maze, config);
     maze.finalizeNeighbors();
     initializeClosedWalls(maze);
-    applyWallAlgorithm(maze, config);
+    applyWallAlgorithm(maze, config, steps);
 
     return maze;
 }
@@ -111,11 +113,9 @@ void MazeGenerator::initializeClosedWalls(MazeState& maze)
     }
 }
 
-void MazeGenerator::applyWallAlgorithm(MazeState& maze, const MazeBuildConfig& config)
+void MazeGenerator::applyWallAlgorithm(MazeState& maze, const MazeBuildConfig& config, std::vector<MazeStep>& steps)
 {
-    (void)maze;
-    (void)config;
-    // stub
+    MazeCarver::carve(maze, config.algorithm, steps);
 }
 
 } // namespace minotaur::world

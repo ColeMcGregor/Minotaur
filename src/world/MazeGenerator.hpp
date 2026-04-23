@@ -1,6 +1,9 @@
 #pragma once
+#include <vector>
+
 #include "world/MazeBuildConfig.hpp"
 #include "world/MazeState.hpp"
+#include "world/MazeStep.hpp"
 
 namespace minotaur::world {
 
@@ -15,7 +18,7 @@ namespace minotaur::world {
 class MazeGenerator
 {
 public:
-    static MazeState generate(const MazeBuildConfig& config);
+    static MazeState generate(const MazeBuildConfig& config, std::vector<MazeStep>& steps);
 
 private:
     static void validateConfig(const MazeBuildConfig& config);
@@ -23,7 +26,7 @@ private:
     static void formRectangle(MazeState& maze, const MazeBuildConfig& config);
     static void formEllipse(MazeState& maze, const MazeBuildConfig& config);
     static void initializeClosedWalls(MazeState& maze);
-    static void applyWallAlgorithm(MazeState& maze, const MazeBuildConfig& config);
+    static void applyWallAlgorithm(MazeState& maze, const MazeBuildConfig& config, std::vector<MazeStep>& steps);
 };
 
 } // namespace minotaur::world

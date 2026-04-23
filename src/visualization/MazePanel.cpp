@@ -17,7 +17,12 @@ void MazePanel::syncFromConfig(const MazeBuildConfig& config)
     switch (config.algorithm)
     {
         case MazeAlgorithm::None:       algorithmDropdownActive_ = 0; break;
-        case MazeAlgorithm::DepthFirst: algorithmDropdownActive_ = 1; break;
+        case MazeAlgorithm::TestEasy:   algorithmDropdownActive_ = 1; break;
+        case MazeAlgorithm::TestMed:    algorithmDropdownActive_ = 2; break;
+        case MazeAlgorithm::TestHard:   algorithmDropdownActive_ = 3; break;
+        case MazeAlgorithm::DepthFirst: algorithmDropdownActive_ = 4; break;
+        case MazeAlgorithm::Prim:       algorithmDropdownActive_ = 5; break;
+        case MazeAlgorithm::Kruskal:    algorithmDropdownActive_ = 6; break;
         default:                        algorithmDropdownActive_ = 0; break;
     }
 }
@@ -32,7 +37,12 @@ void MazePanel::syncToConfig(MazeBuildConfig& config) const
     switch (algorithmDropdownActive_)
     {
         case 0: config.algorithm = MazeAlgorithm::None; break;
-        case 1: config.algorithm = MazeAlgorithm::DepthFirst; break;
+        case 1: config.algorithm = MazeAlgorithm::TestEasy; break;
+        case 2: config.algorithm = MazeAlgorithm::TestMed; break;
+        case 3: config.algorithm = MazeAlgorithm::TestHard; break;
+        case 4: config.algorithm = MazeAlgorithm::DepthFirst; break;
+        case 5: config.algorithm = MazeAlgorithm::Prim; break;
+        case 6: config.algorithm = MazeAlgorithm::Kruskal; break;
         default: config.algorithm = MazeAlgorithm::None; break;
     }
 }
@@ -173,7 +183,7 @@ MazePanel::Result MazePanel::draw(
     GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y + 6), static_cast<float>(labelWidth), 20}, "Algorithm");
     if (GuiDropdownBox(
         Rectangle{static_cast<float>(x + labelWidth), static_cast<float>(y), static_cast<float>(valueWidth + 36), static_cast<float>(rowHeight)},
-        "None;DepthFirst",
+        "None;TestEasy;TestMed;TestHard;DepthFirst;Prim;Kruskal",
         &algorithmDropdownActive_,
         algorithmDropdownEdit_
     ))
@@ -204,8 +214,18 @@ MazePanel::Result MazePanel::draw(
     const char* shapeText =
         (activeConfig.shape == MazeShape::Rectangle) ? "Rectangle" : "Ellipse";
 
-    const char* algorithmText =
-        (activeConfig.algorithm == MazeAlgorithm::DepthFirst) ? "DepthFirst" : "None";
+    const char* algorithmText = "None";
+    switch (activeConfig.algorithm)
+    {
+        case MazeAlgorithm::None:       algorithmText = "None"; break;
+        case MazeAlgorithm::TestEasy:   algorithmText = "TestEasy"; break;
+        case MazeAlgorithm::TestMed:    algorithmText = "TestMed"; break;
+        case MazeAlgorithm::TestHard:   algorithmText = "TestHard"; break;
+        case MazeAlgorithm::DepthFirst: algorithmText = "DepthFirst"; break;
+        case MazeAlgorithm::Prim:       algorithmText = "Prim"; break;
+        case MazeAlgorithm::Kruskal:    algorithmText = "Kruskal"; break;
+        default:                        algorithmText = "None"; break;
+    }
 
     const std::string summary =
         "Backing: " + std::to_string(activeConfig.backingWidth) + " x " + std::to_string(activeConfig.backingHeight) +

@@ -1,5 +1,6 @@
 #include <exception>
 #include <string>
+#include <vector>
 
 #include "raylib.h"
 #define RAYGUI_IMPLEMENTATION
@@ -9,6 +10,8 @@
 #include "visualization/MazeRenderer.hpp"
 
 #include "world/MazeGenerator.hpp"
+#include "world/MazeStep.hpp"
+#include "world/MazeStepPrinter.hpp"
 
 using namespace minotaur::world;
 using namespace minotaur::visualization;
@@ -26,6 +29,7 @@ namespace
         MazeBuildConfig draftConfig{};
         MazeBuildConfig activeConfig{};
         MazeState activeMaze{1, 1};
+        std::vector<MazeStep> steps{};
 
         std::string statusText = "Ready.";
         bool hasGeneratedMaze = false;
@@ -78,10 +82,15 @@ namespace
 
         try
         {
-            state.activeMaze = MazeGenerator::generate(state.draftConfig);
+            state.activeMaze = MazeGenerator::generate(state.draftConfig, state.steps);
             state.activeConfig = state.draftConfig;
             state.hasGeneratedMaze = true;
             state.statusText = "Generation successful.";
+
+            for (const MazeStep& step : state.steps)
+            {
+                MazeStepPrinter::printStep(step);
+            }
         }
         catch (const std::exception& ex)
         {
