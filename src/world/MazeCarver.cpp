@@ -97,6 +97,10 @@ void MazeCarver::carve(MazeState& maze, MazeAlgorithm algorithm, std::vector<Maz
         case MazeAlgorithm::Prim:
             carvePrim(maze, steps);
             break;
+        
+        case MazeAlgorithm::Kruskal:
+            carveKruskal(maze, steps);
+            break;
 
         default:
             carveNone(maze, steps);
@@ -639,6 +643,223 @@ void MazeCarver::carvePrim(MazeState& maze, std::vector<MazeStep>& steps)
         step.stepNumber = stepNumber++;
         step.type = MazeStepType::Complete;
         step.decision = "Prim complete.";
+        step.mutation = "None";
+        step.result = "All reachable active cells carved.";
+        steps.push_back(step);
+    }
+}
+
+void MazeCarver::carveKruskal(MazeState& maze, std::vector<MazeStep>& steps)
+{
+    const int width = maze.width();
+    const int height = maze.height();
+
+    minotaur::RNG rng;
+
+    int stepNumber = 1;
+
+    // Union-find state
+    std::vector<std::vector<int>> parent(height, std::vector<int>(width, -1));
+    std::vector<std::vector<int>> rank(height, std::vector<int>(width, 0));
+
+    std::vector<FrontierEdge> edges;
+
+    auto findRoot = [&](int x, int y) -> std::pair<int,int>
+    {
+        int cx = x;
+        int cy = y;
+
+        while (!(parent[cy][cx] == cy * width + cx))
+        {
+            const int p = parent[cy][cx];
+            cx = p % width;
+            cy = p / width;
+        }
+
+        return {cx, cy};
+    };
+
+    auto compressFindRoot = [&](int x, int y) -> std::pair<int,int>
+    {
+        std::vector<std::pair<int,int>> path;
+        int cx = x;
+        int cy = y;
+
+        while (!(parent[cy][cx] == cy * width + cx))
+        {
+            path.push_back({cx, cy});
+            const int p = parent[cy][cx];
+            cx = p % width;
+            cy = p / width;
+        }
+
+        const int rootValue = cy * width + cx;
+        for (const auto& [px, py] : path)
+        {
+            parent[py][px] = rootValue;
+        }
+
+        return {cx, cy};
+    };
+
+    auto unionSets = [&](int ax, int ay, int bx, int by)
+    {
+        auto [rootAX, rootAY] = compressFindRoot(ax, ay);
+        auto [rootBX, rootBY] = compressFindRoot(bx, by);
+
+        if (rootAX == rootBX && rootAY == rootBY)
+            return;
+
+        if (rank[rootAY][rootAX] < rank[rootBY][rootBX])
+        {
+            parent[rootAY][rootAX] = rootBY * width + rootBX;
+        }
+        else if (rank[rootAY][rootAX] > rank[rootBY][rootBX])
+        {
+            parent[rootBY][rootBX] = rootAY * width + rootAX;
+        }
+        else
+        {
+            parent[rootBY][rootBX] = rootAY * width + rootAX;
+            rank[rootAY][rootAX]++;
+        }
+    };
+
+    // Initialize sets for active cells
+    bool foundAnyActive = false;
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            if (!maze.cellAt(x, y).active)
+                continue;
+
+            foundAnyActive = true;
+            parent[y][x] = y * width + x;
+            rank[y][x] = 0;
+        }
+    }
+
+    if (!foundAnyActive)
+    {
+        MazeStep step;
+        step.stepNumber = stepNumber++;
+        step.type = MazeStepType::Complete;
+        step.decision = "No active cells found.";
+        step.mutation = "None";
+        step.result = "Kruskal aborted.";
+        steps.push_back(step);
+        return;
+    }
+
+    // Build all possible edges using only East and South to avoid duplicates
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            if (!maze.cellAt(x, y).active)
+                continue;
+
+            int nx = -1;
+            int ny = -1;
+
+            // East edge
+            nextCoords(x, y, Direction::East, nx, ny);
+            if (nx >= 0 && ny >= 0 && nx < width && ny < height && maze.cellAt(nx, ny).active)
+            {
+                edges.push_back({x, y, nx, ny, Direction::East});
+            }
+
+            // South edge
+            nextCoords(x, y, Direction::South, nx, ny);
+            if (nx >= 0 && ny >= 0 && nx < width && ny < height && maze.cellAt(nx, ny).active)
+            {
+                edges.push_back({x, y, nx, ny, Direction::South});
+            }
+        }
+    }
+
+    {
+        MazeStep step;
+        step.stepNumber = stepNumber++;
+        step.type = MazeStepType::Start;
+        step.decision = "Begin Kruskal.";
+        step.mutation = "Initialize disjoint sets and edge list.";
+        step.result = "Candidate edge count = " + std::to_string(edges.size());
+        steps.push_back(step);
+    }
+
+    // Shuffle edges
+    for (int i = static_cast<int>(edges.size()) - 1; i > 0; --i)
+    {
+        int j = rng.uniformInt(0, i);
+        std::swap(edges[i], edges[j]);
+    }
+
+    while (!edges.empty())
+    {
+        const FrontierEdge edge = edges.back();
+        edges.pop_back();
+
+        auto [rootAX, rootAY] = compressFindRoot(edge.fromX, edge.fromY);
+        auto [rootBX, rootBY] = compressFindRoot(edge.toX, edge.toY);
+
+        {
+            MazeStep step;
+            step.stepNumber = stepNumber++;
+            step.type = MazeStepType::Consider;
+            step.x = edge.fromX;
+            step.y = edge.fromY;
+            step.x2 = edge.toX;
+            step.y2 = edge.toY;
+            step.candidates = "remaining edges = " + std::to_string(edges.size());
+            step.decision = "Consider edge " + cellString(edge.fromX, edge.fromY) + " -> " + cellString(edge.toX, edge.toY);
+            step.mutation = "None";
+            step.result = "Comparing set roots.";
+            steps.push_back(step);
+        }
+
+        if (rootAX == rootBX && rootAY == rootBY)
+        {
+            MazeStep step;
+            step.stepNumber = stepNumber++;
+            step.type = MazeStepType::Reject;
+            step.x = edge.fromX;
+            step.y = edge.fromY;
+            step.x2 = edge.toX;
+            step.y2 = edge.toY;
+            step.candidates = "remaining edges = " + std::to_string(edges.size());
+            step.decision = "Reject edge: both cells already in same set.";
+            step.mutation = "None";
+            step.result = "Cycle avoided.";
+            steps.push_back(step);
+            continue;
+        }
+
+        maze.openWall(edge.fromX, edge.fromY, edge.dir);
+        unionSets(edge.fromX, edge.fromY, edge.toX, edge.toY);
+
+        {
+            MazeStep step;
+            step.stepNumber = stepNumber++;
+            step.type = MazeStepType::Accept;
+            step.x = edge.fromX;
+            step.y = edge.fromY;
+            step.x2 = edge.toX;
+            step.y2 = edge.toY;
+            step.candidates = "remaining edges = " + std::to_string(edges.size());
+            step.decision = "Accept edge and open " + directionString(edge.dir) + " wall.";
+            step.mutation = "openWall(" + cellString(edge.fromX, edge.fromY) + ") and union sets.";
+            step.result = "Connected two previously separate sets.";
+            steps.push_back(step);
+        }
+    }
+
+    {
+        MazeStep step;
+        step.stepNumber = stepNumber++;
+        step.type = MazeStepType::Complete;
+        step.decision = "Kruskal complete.";
         step.mutation = "None";
         step.result = "All reachable active cells carved.";
         steps.push_back(step);

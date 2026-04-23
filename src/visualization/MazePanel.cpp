@@ -205,7 +205,7 @@ MazePanel::Result MazePanel::draw(
         &stepMode
     );
 
-    DrawText(stepMode ? "On" : "Off", x + labelWidth + 32, y + 6, 18, RAYWHITE);
+    DrawText(stepMode ? "On" : "Off", x + labelWidth + 32, y + 6, 18, BLACK);
 
     y += rowHeight + 16;
 
@@ -218,7 +218,7 @@ MazePanel::Result MazePanel::draw(
 
     GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Status");
     y += 22;
-    DrawText(statusText.c_str(), x, y, 18, RAYWHITE);
+    DrawText(statusText.c_str(), x, y, 18, BLACK);
 
     y += 44;
     GuiLabel(Rectangle{static_cast<float>(x), static_cast<float>(y), 240, 20}, "Last Generated");

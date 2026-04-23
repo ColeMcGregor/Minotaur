@@ -46,6 +46,8 @@ private:
     //True Maze algorithms
     static void carveDepthFirst(MazeState& maze, std::vector<MazeStep>& steps);
     static void carvePrim(MazeState& maze, std::vector<MazeStep>& steps);
+    static void carveKruskal(MazeState& maze, std::vector<MazeStep>& steps);
+
 
     static void applyAction(MazeState& maze, const CarveAction& action, int& stepNumber, std::vector<MazeStep>& steps);
 };

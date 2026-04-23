@@ -87,8 +87,8 @@ namespace
             state.activeConfig = state.draftConfig;
             state.hasGeneratedMaze = true;
             state.statusText = state.stepMode
-            ? "Generation successful. Step mode enabled."
-            : "Generation successful. Instant mode enabled.";
+            ? "Generation successful. \n Step mode enabled."
+            : "Generation successful.\n  Instant mode enabled.";
 
             if (!state.stepMode)
                 {
