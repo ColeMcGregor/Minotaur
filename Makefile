@@ -12,6 +12,7 @@ SRC = \
 	src/world/MazeStepPrinter.cpp \
 	src/simulation/SimGenerator.cpp \
 	src/visualization/EntityRenderer.cpp \
+	src/visualization/ShaderRenderer.cpp \
 	src/core/RNG.cpp
 
 OUT = harness.exe

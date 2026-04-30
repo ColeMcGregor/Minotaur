@@ -12,6 +12,9 @@
 #include "simulation/SimGenerator.hpp"
 #include "simulation/SimState.hpp"
 
+#include "simulation/CellPos.hpp"
+#include "visualization/ShaderRenderer.hpp"
+
 #include "visualization/EntityRenderer.hpp"
 #include "visualization/MazePanel.hpp"
 #include "visualization/MazeRenderer.hpp"
@@ -19,6 +22,8 @@
 #include "world/MazeBuildConfig.hpp"
 #include "world/MazeStep.hpp"
 #include "world/MazeStepPrinter.hpp"
+
+#include "entities/entity.hpp"
 
 using namespace minotaur::world;
 using namespace minotaur::visualization;
@@ -105,7 +110,7 @@ namespace
                 ? "Generation successful. \n Step mode enabled."
                 : "Generation successful.\n  Instant mode enabled.";
 
-            if (!state.stepMode)
+            if (state.stepMode)
             {
                 for (const MazeStep& step : state.steps)
                 {
@@ -118,6 +123,21 @@ namespace
             state.statusText = std::string("Generation failed: ") + ex.what();
         }
     }
+
+    bool tryGetPlayerPos(const SimState& sim, CellPos& outPos)
+    {
+        for (const EntityRecord& entity : sim.entities)
+        {
+            if (entity.active && entity.kind == minotaur::EntityKind::Player)
+            {
+                outPos = entity.pos;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }
 
 int main()
@@ -131,7 +151,7 @@ int main()
     state.draftConfig.mazeWidth = 12;
     state.draftConfig.mazeHeight = 9;
     state.draftConfig.shape = MazeShape::Rectangle;
-    state.draftConfig.algorithm = MazeAlgorithm::None;
+    state.draftConfig.algorithm = MazeAlgorithm::Kruskal;
 
     panel.syncFromConfig(state.draftConfig);
 
@@ -140,6 +160,8 @@ int main()
 
     MazeRenderer mazeRenderer;
     EntityRenderer entityRenderer;
+    ShaderRenderer shaderRenderer;
+    LanternConfig lanternConfig;
 
     tryRegenerate(state, rng);
 
@@ -149,10 +171,21 @@ int main()
         ClearBackground(Color{20, 20, 20, 255});
 
         if (state.hasGeneratedMaze)
-        {
-            mazeRenderer.drawMaze(state.activeSim.maze, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
-            entityRenderer.drawEntities(state.activeSim.entities, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
-        }
+            {
+                mazeRenderer.drawMaze(state.activeSim.maze, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
+                entityRenderer.drawEntities(state.activeSim.entities, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
+                CellPos playerPos;
+                if (tryGetPlayerPos(state.activeSim, playerPos))
+                {
+                    shaderRenderer.draw(
+                        state.activeSim.maze,
+                        playerPos,
+                        MAZE_ORIGIN_X,
+                        MAZE_ORIGIN_Y,
+                        lanternConfig
+                    );
+                }
+            }
 
         const MazePanel::Result panelResult =
             panel.draw(state.draftConfig, state.activeConfig, state.statusText, state.stepMode);
