@@ -6,15 +6,23 @@
 #define RAYGUI_IMPLEMENTATION
 #include "third_party/raygui/src/raygui.h"
 
+#include "core/RNG.hpp"
+
+#include "simulation/SimBuildConfig.hpp"
+#include "simulation/SimGenerator.hpp"
+#include "simulation/SimState.hpp"
+
+#include "visualization/EntityRenderer.hpp"
 #include "visualization/MazePanel.hpp"
 #include "visualization/MazeRenderer.hpp"
 
-#include "world/MazeGenerator.hpp"
+#include "world/MazeBuildConfig.hpp"
 #include "world/MazeStep.hpp"
 #include "world/MazeStepPrinter.hpp"
 
 using namespace minotaur::world;
 using namespace minotaur::visualization;
+using namespace minotaur::simulation;
 
 namespace
 {
@@ -28,7 +36,8 @@ namespace
     {
         MazeBuildConfig draftConfig{};
         MazeBuildConfig activeConfig{};
-        MazeState activeMaze{1, 1};
+        SimState activeSim{};
+
         std::vector<MazeStep> steps{};
         bool stepMode = false;
 
@@ -72,7 +81,7 @@ namespace
         return true;
     }
 
-    void tryRegenerate(HarnessState& state)
+    void tryRegenerate(HarnessState& state, minotaur::RNG& rng)
     {
         std::string validationError;
         if (!validateDraftConfig(state.draftConfig, validationError))
@@ -83,20 +92,26 @@ namespace
 
         try
         {
-            state.activeMaze = MazeGenerator::generate(state.draftConfig, state.steps);
+            state.steps.clear();
+
+            SimBuildConfig simConfig;
+            simConfig.maze = state.draftConfig;
+
+            state.activeSim = SimGenerator::generate(simConfig, rng, state.steps);
             state.activeConfig = state.draftConfig;
             state.hasGeneratedMaze = true;
+
             state.statusText = state.stepMode
-            ? "Generation successful. \n Step mode enabled."
-            : "Generation successful.\n  Instant mode enabled.";
+                ? "Generation successful. \n Step mode enabled."
+                : "Generation successful.\n  Instant mode enabled.";
 
             if (!state.stepMode)
+            {
+                for (const MazeStep& step : state.steps)
                 {
-                    for (const MazeStep& step : state.steps)
-                    {
-                        MazeStepPrinter::printStep(step);
-                    }
+                    MazeStepPrinter::printStep(step);
                 }
+            }
         }
         catch (const std::exception& ex)
         {
@@ -109,21 +124,24 @@ int main()
 {
     HarnessState state;
     MazePanel panel;
+    minotaur::RNG rng;
 
     state.draftConfig.backingWidth = 24;
     state.draftConfig.backingHeight = 19;
-    state.draftConfig.mazeWidth = 22;
-    state.draftConfig.mazeHeight = 17;
+    state.draftConfig.mazeWidth = 12;
+    state.draftConfig.mazeHeight = 9;
     state.draftConfig.shape = MazeShape::Rectangle;
     state.draftConfig.algorithm = MazeAlgorithm::None;
 
     panel.syncFromConfig(state.draftConfig);
-    tryRegenerate(state);
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Maze Harness");
     SetTargetFPS(60);
 
-    MazeRenderer renderer;
+    MazeRenderer mazeRenderer;
+    EntityRenderer entityRenderer;
+
+    tryRegenerate(state, rng);
 
     while (!WindowShouldClose())
     {
@@ -132,15 +150,16 @@ int main()
 
         if (state.hasGeneratedMaze)
         {
-            renderer.drawMaze(state.activeMaze, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
+            mazeRenderer.drawMaze(state.activeSim.maze, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
+            entityRenderer.drawEntities(state.activeSim.entities, MAZE_ORIGIN_X, MAZE_ORIGIN_Y);
         }
 
         const MazePanel::Result panelResult =
-        panel.draw(state.draftConfig, state.activeConfig, state.statusText, state.stepMode);
+            panel.draw(state.draftConfig, state.activeConfig, state.statusText, state.stepMode);
 
         if (panelResult.generatePressed)
         {
-            tryRegenerate(state);
+            tryRegenerate(state, rng);
         }
 
         EndDrawing();

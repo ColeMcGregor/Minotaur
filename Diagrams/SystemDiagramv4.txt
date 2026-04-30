@@ -10,7 +10,7 @@ package "core" {
     }
 
     class GameSession {
-        +maze: MazeState
+        +sim: SimState
         +rng: RNG
         +bus: EventBus
         +turns: TurnManager
@@ -69,21 +69,149 @@ package "core" {
 ' ──────────────── WORLD ────────────────
 package "world" {
 
-    class Cell {
-        +Neighbor: Struct
+    enum Direction {
+        North
+        East
+        South
+        West
+    }
+
+    enum MazeShape {
+        Rectangle
+        Ellipse
+    }
+
+    enum MazeAlgorithm {
+        None
+        TestEasy
+        TestMed
+        TestHard
+        DepthFirst
+        Prim
+        Kruskal
+    }
+
+    enum MazeStepType {
+        Start
+        Visit
+        Consider
+        Accept
+        Reject
+        Backtrack
+        Complete
+    }
+
+    class Neighbor {
         +x: Int
         +y: Int
+        +direction: Direction
+        +valid: Boolean
+    }
+
+    class Cell {
+        +x: Int
+        +y: Int
+        +active: Boolean
         +north: Boolean
         +east: Boolean
         +south: Boolean
         +west: Boolean
-        +nbr: Neighbor
+        +nbr: Neighbor[4]
+        +nbrCount: Int
+    }
+
+    class MazeBuildConfig {
+        +backingWidth: Int
+        +backingHeight: Int
+        +mazeWidth: Int
+        +mazeHeight: Int
+        +shape: MazeShape
+        +algorithm: MazeAlgorithm
+    }
+
+    class MazeStep {
+        +stepNumber: Int
+        +type: MazeStepType
+        +x: Int
+        +y: Int
+        +x2: Int
+        +y2: Int
+        +candidates: String
+        +decision: String
+        +mutation: String
+        +result: String
+    }
+
+    class MazeStepPrinter {
+        +toString(type: MazeStepType): String
+        +printStep(step: MazeStep): void
     }
 
     class MazeState {
-        +Walls: VectorList<Cell>
-        +EntityLocations: VectorList<Cell>
-        +toggleWall(cell: Cell, dir: Direction): void
+        +width(): Int
+        +height(): Int
+        +inBounds(x: Int, y: Int): Boolean
+        +hasCell(x: Int, y: Int): Boolean
+        +cellAt(x: Int, y: Int): Cell
+        +finalizeNeighbors(): void
+        +openWall(x: Int, y: Int, dir: Direction): void
+        +closeWall(x: Int, y: Int, dir: Direction): void
+        +toggleWall(x: Int, y: Int, dir: Direction): void
+        +opposite(d: Direction): Direction
+    }
+
+    class MazeGenerator {
+        +generate(config: MazeBuildConfig, steps: List<MazeStep>): MazeState
+        +validateConfig(config: MazeBuildConfig): void
+        +formShape(maze: MazeState, config: MazeBuildConfig): void
+        +initializeClosedWalls(maze: MazeState): void
+    }
+
+    class MazeCarver {
+        +carve(maze: MazeState, algorithm: MazeAlgorithm, steps: List<MazeStep>): void
+    }
+}
+
+' ──────────────── SIMULATION ────────────────
+package "simulation" {
+
+    class CellPos {
+        +x: Int
+        +y: Int
+    }
+
+    enum EntityKind {
+        Player
+        Staircase
+        Minotaur
+        Enemy
+        Torch
+        Chest
+        SpecialWall
+        Other
+    }
+
+    class EntityRecord {
+        +id: Int
+        +kind: EntityKind
+        +name: String
+        +position: CellPos
+        +canAct: Boolean
+    }
+
+    class SimState {
+        +maze: MazeState
+        +entities: List<EntityRecord>
+    }
+
+    class SimGenerator {
+        +generate(config: MazeBuildConfig, rng: RNG): SimState
+        +placeStart(sim: SimState, rng: RNG): void
+        +placeStaircase(sim: SimState, rng: RNG): void
+        +placeMinotaur(sim: SimState, rng: RNG): void
+        +placeEnemies(sim: SimState, rng: RNG): void
+        +placeTorches(sim: SimState, rng: RNG): void
+        +placeChests(sim: SimState, rng: RNG): void
     }
 }
 
@@ -123,7 +251,7 @@ package "entities" {
     
     package "components" as components{
       class Position {
-          +cell: Cell
+          +cell: CellPos
       }
   
       class Stats {
@@ -173,7 +301,7 @@ package "controllers" {
     }
 
     class DecisionContext {
-        +maze: MazeState
+        +sim: SimState
         +self: Entity
         +opponent: Entity
         +apRemaining: Int
@@ -181,15 +309,16 @@ package "controllers" {
         +rng: RNG
     }
 }
+
 ' ──────────────── AI ────────────────
 package "AI" as AI {
 
     class Pathfinding {
-        +nextStep(from: Cell, to: Cell, maze: MazeState): Cell
+        +nextStep(from: CellPos, to: CellPos, maze: MazeState): CellPos
     }
 
     class FOV {
-        +visibleFrom(cell: Cell, maze: MazeState): List<Cell>
+        +visibleFrom(cell: CellPos, maze: MazeState): List<Cell>
     }
     
     class MazeShifter {
@@ -207,6 +336,7 @@ package "rules" {
     }
 
     class ActionContext {
+        +sim: SimState
         +maze: MazeState
         +pos: Position
         +inv: Inventory
@@ -231,17 +361,17 @@ package "actions" as actions{
     }
 
     class MoveAction {
-        +target: Cell
+        +target: CellPos
     }
 
     class TeleportAction {
-        +target: Cell
+        +target: CellPos
         +range: Int
         +mustBeVisible: Boolean
     }
 
     class PhaseMoveAction {
-        +target: Cell
+        +target: CellPos
     }
 
     class TransferItemAction {
@@ -367,7 +497,23 @@ package "effects" as effects{
     }   
 }
 
-' ──────────────── RELATIONSHIPS (explicit labels) ────────────────
+' ──────────────── VISUALIZATION / HARNESS ────────────────
+package "visualization" {
+
+    class MazeRenderer {
+        +drawMaze(maze: MazeState, originX: Int, originY: Int): void
+    }
+
+    class MazePanel {
+        +draw(config: MazeBuildConfig): Result
+    }
+
+    class Harness {
+        +run(): void
+    }
+}
+
+' ──────────────── RELATIONSHIPS ────────────────
 
 GameLoop --> TurnManager : "runs turn cycle"
 GameLoop --> EventBus : "publish lifecycle events"
@@ -375,26 +521,44 @@ GameLoop --> RNG : "random generator"
 GameLoop --> GameSession : run()
 
 GameSession --> TurnManager : owns/uses
-GameSession --> RNG        : owns
-GameSession --> EventBus   : owns
-GameSession --> world.MazeState : owns
+GameSession --> RNG : owns
+GameSession --> EventBus : owns
+GameSession --> simulation.SimState : owns
 
-TurnManager --> EventBus : publish events
-TurnManager --> RNG      : randomness
-TurnManager --> world.MazeState : checks/updates map
-TurnManager --> MazeState : "queries map / validates moves"
-TurnManager --> RNG : "random checks"
+TurnManager --> EventBus : "publish events"
+TurnManager --> RNG : "randomness"
+TurnManager --> simulation.SimState : "checks/updates runtime"
+TurnManager --> world.MazeState : "queries map / validates moves"
 TurnManager --> RulesEngine : "validate+apply action"
 TurnManager --> FOV : "compute vision"
 TurnManager --> Pathfinding : "path requests"
 TurnManager --> MazeShifter : "cause wall shifts"
-TurnManager --> EventBus : "pub Turn/Action info"
 
 MazeShifter --> MazeState : "toggles cardinal wall flags"
 MazeShifter --> RNG : "chooses walls to shift"
 MazeShifter --> EventBus : "publishes MazeShifted"
+
 MazeState --> Cell : "owns grid cells"
+Cell --> Neighbor : "caches adjacency"
 MazeState --> Direction : "uses directions"
+
+MazeBuildConfig --> MazeGenerator : "input"
+MazeBuildConfig --> SimGenerator : "input"
+MazeGenerator --> MazeState : "builds"
+MazeGenerator --> MazeCarver : "dispatch carve"
+MazeCarver --> MazeStep : "records"
+MazeStepPrinter --> MazeStep : "prints"
+
+RNG --> MazeCarver : "random selection"
+RNG --> SimGenerator : "random placement"
+
+CellPos --> SimState
+EntityKind --> EntityRecord
+EntityRecord --> CellPos
+SimState --> MazeState : "owns topology"
+SimState --> EntityRecord : "owns placements"
+SimGenerator --> SimState : "builds"
+SimGenerator --> MazeState : "uses finished maze"
 
 Hunted --|> Entity : "is an"
 Hunted --> components : "is made up of"
@@ -402,7 +566,6 @@ Hunted --> components : "is made up of"
 Minotaur --|> Entity : "is an"
 Minotaur --|> entities.monsters.Monster : "form of"
 Minotaur --> components : "is made up of"
-
 
 Chest --|> Entity : "is an"
 Chest --> components : "is made up of"
@@ -417,40 +580,45 @@ Cyclops --|> entities.monsters.Monster : "form of"
 Rat --|> entities.monsters.Monster : "form of"
 Skeleton --|> entities.monsters.Monster : "form of"
 
-
 Controller --> DecisionContext : "reads to choose action"
+DecisionContext --> simulation.SimState : "reads runtime"
 
 RulesEngine --> ActionContext : "reads/writes via context"
+RulesEngine --> SimState : "checks occupancy / state"
 RulesEngine --> MazeState : "checks walls/visibility"
 RulesEngine --> Inventory : "adds/consumes items"
 RulesEngine --> StatusEffects : "applies/removes effects"
 RulesEngine --> Stats : "adjusts AP/HP"
 
-Item <|-- Potion                 : "on use → effect"
-Item <|-- TeleportCharm          : "teleport inside fov"
-Item <|-- PhaseStone             : "phase move through wall"
-Item <|-- EnchantedHammer        : "build wall"
-Item <|-- JerichoHorn            : "collapse wall"
-Item <|-- HasteAmulet            : "+AP"
-Item <|-- ThievesTrustedKnife    : "+Speed/+ Medium Attack"
-Item <|-- BarbariansGreatAxe     : "+Large Attack"
-Item <|-- SharpSword             : "+Small Attack"
-Item <|-- CuriousLamp            : "+FOV radius"
-Item <|-- EyeOfKnossos         : "shows proximity to Minotaur"
-Item <|-- OracularLens         : "reveals full FOV"
-Item <|-- HerosChalice         : "+Actions this turn"
-Item <|-- AriadnesThread       : "return to marked location"
-Item <|-- SuspiciousCompass    : "nearest obj coords"
-
+Item <|-- Potion : "on use → effect"
+Item <|-- TeleportCharm : "teleport inside fov"
+Item <|-- PhaseStone : "phase move through wall"
+Item <|-- EnchantedHammer : "build wall"
+Item <|-- JerichoHorn : "collapse wall"
+Item <|-- HasteAmulet : "+AP"
+Item <|-- ThievesTrustedKnife : "+Speed/+ Medium Attack"
+Item <|-- BarbariansGreatAxe : "+Large Attack"
+Item <|-- SharpSword : "+Small Attack"
+Item <|-- CuriousLamp : "+FOV radius"
+Item <|-- EyeOfKnossos : "shows proximity to Minotaur"
+Item <|-- OracularLens : "reveals full FOV"
+Item <|-- HerosChalice : "+Actions this turn"
+Item <|-- AriadnesThread : "return to marked location"
+Item <|-- SuspiciousCompass : "nearest obj coords"
 
 Inventory --> Item : "contains"
 StatusEffects --> Effect : "applies"
 
-rules.LootResolver --> items.lootTables: "lookup by index"
+rules.LootResolver --> items.lootTables : "lookup by index"
 rules.LootResolver --> RNG : "rolls 2d8"
 Chest --> rules.LootResolver : "requests loot"
 entities.monsters.Monster --> rules.LootResolver : "requests loot"
 rules.LootResolver --> EventBus : "publishes LootResolved(name,sum)"
 rules.LootResolver --> Chest : "if '2', Mimic, else treasure"
+
+visualization.Harness --> visualization.MazePanel : "uses"
+visualization.Harness --> visualization.MazeRenderer : "uses"
+visualization.Harness --> MazeGenerator : "generates maze"
+visualization.Harness --> MazeStepPrinter : "prints debug steps"
 
 @enduml

@@ -16,7 +16,8 @@ namespace minotaur {
 enum class EntityKind
 {
     Player,
-    Staircase,
+    EnterStair,
+    ExitStair,
     Minotaur,
     Enemy,
     Torch,
