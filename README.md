@@ -44,6 +44,10 @@ Core Loop
 4. The Minotaur relentlessly closes in, using its knowledge of the hunted’s position.
 5. Game ends when the hunted escapes or is caught.
 
+CURRENT STATE EXAMPLES:
+
+<img width="635" height="494" alt="Example1" src="https://github.com/user-attachments/assets/0a342eca-9ea2-473d-a450-e9920056c8f2" />
+<img width="605" height="477" alt="Example2" src="https://github.com/user-attachments/assets/2118d9f9-bb6f-4d20-8f27-08eb82597640" />
 
 
 
